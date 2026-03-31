@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NEXUS — FiveM Server Control Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="scanline"></div>
+<div class="noise"></div>
+
+<!-- TOP NAV -->
+<nav class="topnav">
+  <div class="logo">
+    <span class="logo-bracket">[</span>
+    <span class="logo-text">NEXUS</span>
+    <span class="logo-bracket">]</span>
+    <span class="logo-sub">SERVER CONTROL v2.4</span>
+  </div>
+  <div class="nav-center">
+    <div class="server-status">
+      <span class="status-dot pulse"></span>
+      <span id="serverName">GTA RP SERVER</span>
+      <span class="sep">|</span>
+      <span id="playerCount">0/64</span>
+      <span class="sep">|</span>
+      <span id="serverUptime">UP: 00:00:00</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <div class="search-wrapper">
+      <input type="text" id="globalSearch" placeholder="Search player, ID, coords..." class="global-search">
+      <span class="search-icon">⌕</span>
+      <div id="searchResults" class="search-dropdown hidden"></div>
+    </div>
+    <button class="nav-btn" onclick="togglePanel('alerts')">⚠ ALERTS <span id="alertBadge" class="badge">0</span></button>
+    <button class="nav-btn active" onclick="location.reload()">⟳ SYNC</button>
+  </div>
+</nav>
+
+<!-- ALERTS PANEL -->
+<div id="alertsPanel" class="alerts-panel hidden">
+  <div class="panel-header">LIVE ALERTS <button onclick="togglePanel('alerts')" class="close-btn">✕</button></div>
+  <div id="alertsList"></div>
+</div>
+
+<!-- MAIN LAYOUT -->
+<div class="main-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar left-sidebar">
+    <div class="sidebar-section">
+      <div class="section-title">PLAYERS ONLINE</div>
+      <div id="playerList" class="player-list"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-title">SERVER STATS</div>
+      <div class="stats-grid">
+        <div class="stat-item"><div class="stat-val" id="statKills">0</div><div class="stat-label">KILLS</div></div>
+        <div class="stat-item"><div class="stat-val" id="statExplosions">0</div><div class="stat-label">BLASTS</div></div>
+        <div class="stat-item"><div class="stat-val" id="statDrops">0</div><div class="stat-label">DROPS</div></div>
+        <div class="stat-item"><div class="stat-val" id="statHarvest">0</div><div class="stat-label">HARVEST</div></div>
+        <div class="stat-item"><div class="stat-val" id="statMoney">$0</div><div class="stat-label">CIRCULATING</div></div>
+        <div class="stat-item"><div class="stat-val" id="statTps">60</div><div class="stat-label">TPS</div></div>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-title">QUICK ACTIONS</div>
+      <div class="action-buttons">
+        <button class="action-btn warn" onclick="sendServerCommand('announce')">📢 ANNOUNCE</button>
+        <button class="action-btn danger" onclick="sendServerCommand('restart')">⟳ RESTART</button>
+        <button class="action-btn info" onclick="sendServerCommand('weather')">🌤 WEATHER</button>
+        <button class="action-btn info" onclick="sendServerCommand('time')">🕐 SET TIME</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CENTER: MAP + SPECTATE -->
+  <main class="center-panel">
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="switchTab('map')">🗺 LIVE MAP</button>
+      <button class="tab-btn" onclick="switchTab('spectate')">📹 SPECTATE</button>
+      <button class="tab-btn" onclick="switchTab('inventory')">🎒 INVENTORY</button>
+      <button class="tab-btn" onclick="switchTab('economy')">💰 ECONOMY</button>
+    </div>
+
+    <!-- MAP TAB -->
+    <div id="tab-map" class="tab-content active">
+      <div class="map-container">
+        <canvas id="mapCanvas"></canvas>
+        <div class="map-controls">
+          <button onclick="mapZoom(1.2)">+</button>
+          <button onclick="mapZoom(0.8)">−</button>
+          <button onclick="mapReset()">⌂</button>
+        </div>
+        <div class="map-legend">
+          <span class="legend-dot player"></span>PLAYER
+          <span class="legend-dot kill"></span>KILL
+          <span class="legend-dot explosion"></span>BLAST
+          <span class="legend-dot harvest"></span>HARVEST
+        </div>
+        <div id="mapTooltip" class="map-tooltip hidden"></div>
+      </div>
+    </div>
+
+    <!-- SPECTATE TAB -->
+    <div id="tab-spectate" class="tab-content">
+      <div class="spectate-panel">
+        <div class="spectate-screen">
+          <div class="spectate-overlay">
+            <div class="spectate-hud-top">
+              <span id="specPlayerName">— NOT SPECTATING —</span>
+              <span id="specHealth" class="hud-stat">❤ 100</span>
+              <span id="specArmour" class="hud-stat">🛡 100</span>
+            </div>
+            <div class="spectate-crosshair">⊕</div>
+            <div class="spectate-hud-bottom">
+              <span id="specCoords">X: 0 Y: 0 Z: 0</span>
+              <span id="specSpeed">0 km/h</span>
+              <span id="specWeapon">UNARMED</span>
+            </div>
+            <div class="spectate-inactive" id="specInactive">
+              <div class="spec-icon">◉</div>
+              <div>SELECT A PLAYER TO SPECTATE</div>
+              <div class="spec-hint">Click any player in the sidebar</div>
+            </div>
+          </div>
+          <!-- Simulated camera feed via Canvas -->
+          <canvas id="spectateCanvas"></canvas>
+        </div>
+        <div class="spectate-controls">
+          <button class="spec-btn" onclick="stopSpectate()">■ STOP</button>
+          <button class="spec-btn" onclick="spectateNext(-1)">◀ PREV</button>
+          <button class="spec-btn" onclick="spectateNext(1)">NEXT ▶</button>
+          <div class="spec-cam-modes">
+            <button class="spec-mode active" onclick="setCamMode('follow')">FOLLOW</button>
+            <button class="spec-mode" onclick="setCamMode('free')">FREE</button>
+            <button class="spec-mode" onclick="setCamMode('first')">1ST</button>
+          </div>
+        </div>
+        <div class="spectate-info" id="spectateInfo">
+          <div class="info-row"><span>PLAYER ID</span><span id="sInfoId">—</span></div>
+          <div class="info-row"><span>DISCORD</span><span id="sInfoDiscord">—</span></div>
+          <div class="info-row"><span>CASH</span><span id="sInfoCash">—</span></div>
+          <div class="info-row"><span>BANK</span><span id="sInfoBank">—</span></div>
+          <div class="info-row"><span>JOB</span><span id="sInfoJob">—</span></div>
+          <div class="info-row"><span>VEHICLE</span><span id="sInfoVeh">—</span></div>
+          <div class="info-row"><span>PING</span><span id="sInfoPing">—</span></div>
+          <div class="info-row"><span>PLAYTIME</span><span id="sInfoTime">—</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INVENTORY TAB -->
+    <div id="tab-inventory" class="tab-content">
+      <div class="inv-panel">
+        <div class="inv-search-bar">
+          <select id="invPlayerSelect" onchange="loadPlayerInventory()">
+            <option value="">— SELECT PLAYER —</option>
+          </select>
+          <input type="text" id="invSearch" placeholder="Search item..." oninput="filterInventory()">
+        </div>
+        <div id="inventoryGrid" class="inventory-grid"></div>
+        <div class="inv-actions">
+          <button class="action-btn danger" onclick="adminDropItem()">DROP ITEM</button>
+          <button class="action-btn warn" onclick="adminUseItem()">USE ITEM</button>
+          <button class="action-btn info" onclick="adminGiveItem()">GIVE ITEM</button>
+          <button class="action-btn danger" onclick="adminRemoveItem()">REMOVE</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ECONOMY TAB -->
+    <div id="tab-economy" class="tab-content">
+      <div class="eco-panel">
+        <div class="eco-stats-row">
+          <div class="eco-stat"><div class="eco-val" id="ecoTotalCash">$0</div><div class="eco-label">TOTAL CASH</div></div>
+          <div class="eco-stat"><div class="eco-val" id="ecoTotalBank">$0</div><div class="eco-label">TOTAL BANK</div></div>
+          <div class="eco-stat"><div class="eco-val" id="ecoTransactions">0</div><div class="eco-label">TRANSACTIONS</div></div>
+          <div class="eco-stat"><div class="eco-val" id="ecoWeedHarvested">0g</div><div class="eco-label">WEED HARVESTED</div></div>
+        </div>
+        <div class="eco-money-actions">
+          <div class="money-action-card">
+            <div class="mac-title">GIVE MONEY</div>
+            <select id="giveMoneyPlayer"><option value="">Select Player</option></select>
+            <input type="number" id="giveMoneyAmount" placeholder="Amount $">
+            <select id="giveMoneyType">
+              <option value="cash">Cash</option>
+              <option value="bank">Bank</option>
+            </select>
+            <button class="action-btn info" onclick="adminGiveMoney()">GIVE</button>
+          </div>
+          <div class="money-action-card">
+            <div class="mac-title">TAKE MONEY</div>
+            <select id="takeMoneyPlayer"><option value="">Select Player</option></select>
+            <input type="number" id="takeMoneyAmount" placeholder="Amount $">
+            <select id="takeMoneyType">
+              <option value="cash">Cash</option>
+              <option value="bank">Bank</option>
+            </select>
+            <button class="action-btn danger" onclick="adminTakeMoney()">TAKE</button>
+          </div>
+        </div>
+        <div class="eco-transactions-list">
+          <div class="section-title">RECENT TRANSACTIONS</div>
+          <div id="transactionLog"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- RIGHT SIDEBAR -->
+  <aside class="sidebar right-sidebar">
+    <div class="sidebar-section">
+      <div class="section-title">LIVE EVENT FEED</div>
+      <div class="event-feed" id="eventFeed"></div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-title">PLAYER ACTIONS</div>
+      <div id="selectedPlayerInfo" class="selected-player-card">
+        <div class="no-selection">No player selected</div>
+      </div>
+      <div id="playerActionButtons" class="player-actions hidden">
+        <button class="action-btn warn" onclick="playerAction('kick')">KICK</button>
+        <button class="action-btn danger" onclick="playerAction('ban')">BAN</button>
+        <button class="action-btn info" onclick="playerAction('spectate')">SPECTATE</button>
+        <button class="action-btn info" onclick="playerAction('tp')">TELEPORT</button>
+        <button class="action-btn info" onclick="playerAction('freeze')">FREEZE</button>
+        <button class="action-btn warn" onclick="playerAction('revive')">REVIVE</button>
+        <button class="action-btn info" onclick="playerAction('heal')">HEAL</button>
+        <button class="action-btn danger" onclick="playerAction('strip')">STRIP WEAPONS</button>
+      </div>
+    </div>
+    <div class="sidebar-section">
+      <div class="section-title">CHAT LOG</div>
+      <div id="chatLog" class="chat-log"></div>
+      <div class="chat-send">
+        <input type="text" id="adminChatMsg" placeholder="Send as admin...">
+        <button onclick="sendAdminChat()">▶</button>
+      </div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- MODAL -->
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal-box">
+    <div class="modal-title" id="modalTitle">CONFIRM ACTION</div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-actions">
+      <button class="action-btn" onclick="closeModal()">CANCEL</button>
+      <button class="action-btn danger" id="modalConfirm">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
